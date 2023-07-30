@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>矩阵乘积计算器</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    table {
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    table, th, td {
+      border: 1px solid black;
+      padding: 5px;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    #result {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>矩阵乘积计算器</h1>
+
+  <p>选择矩阵 A 文件 (xlsx/csv)：</p>
+  <input type="file" id="matrixAFile" accept=".xlsx, .csv">
+
+  <p>或输入矩阵 A：</p>
+  <textarea id="matrixA" rows="5" cols="40"></textarea>
+
+  <p>选择矩阵 B 文件 (xlsx/csv)：</p>
+  <input type="file" id="matrixBFile" accept=".xlsx, .csv">
+
+  <p>或输入矩阵 B：</p>
+  <textarea id="matrixB" rows="5" cols="40"></textarea>
+
+  <button onclick="multiplyMatrices()">计算乘积</button>
+
+  <h2>结果</h2>
+  <div id="result"></div>
+
+  <p>
+    <button onclick="saveResultToFile()">保存结果到文件</button>
+    <a id="downloadLink" style="display: none">下载结果文件</a>
+  </p>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <script>
+    function readFileAsMatrix(fileInputId, callback) {
+      const fileInput = document.getElementById(fileInputId);
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        const data = event.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        callback(jsonData);
+
+        // Show "数据已读取" in the corresponding textarea
+        const textarea = document.getElementById(fileInputId.replace("File", ""));
+        textarea.value = "数据已读取";
+      };
+
+      reader.onerror = function() {
+        alert('文件读取失败！');
+      };
+
+      reader.readAsBinaryString(file);
+    }
+
+    function multiplyMatrices() {
+      const matrixAFileInput = document.getElementById('matrixAFile');
+      const matrixBFileInput = document.getElementById('matrixBFile');
+      const matrixAString = document.getElementById('matrixA').value;
+      const matrixBString = document.getElementById('matrixB').value;
+
+      if ((matrixAFileInput.files.length > 0 || matrixAString.trim() !== '') &&
+          (matrixBFileInput.files.length > 0 || matrixBString.trim() !== '')) {
+        if (matrixAFileInput.files.length > 0) {
+          readFileAsMatrix('matrixAFile', function(matrixData) {
+            const matrixA = parseMatrix(matrixData);
+            processMatrixA(matrixA);
+          });
+        } else {
+          const matrixA = parseMatrix(matrixAString);
+          processMatrixA(matrixA);
+        }
+
+        if (matrixBFileInput.files.length > 0) {
+          readFileAsMatrix('matrixBFile', function(matrixData) {
+            const matrixB = parseMatrix(matrixData);
+            processMatrixB(matrixB);
+          });
+        } else {
+          const matrixB = parseMatrix(matrixBString);
+          processMatrixB(matrixB);
+        }
+      } else {
+        document.getElementById('result').innerText = '请输入矩阵或选择文件。';
+      }
+    }
+
+    function processMatrixA(matrix) {
+      if (matrix === null) {
+        document.getElementById('result').innerText = '矩阵 A：请输入正确的矩阵格式或选择文件。';
+        return;
+      }
+
+      window.matrixA = matrix;
+      document.getElementById('result').innerText = '';
+    }
+
+    function processMatrixB(matrix) {
+      if (matrix === null) {
+        document.getElementById('result').innerText = '矩阵 B：请输入正确的矩阵格式或选择文件。';
+        return;
+      }
+
+      window.matrixB = matrix;
+      document.getElementById('result').innerText = '';
+      calculateProduct();
+    }
+
+    function parseMatrix(matrixData) {
+      const matrix = [];
+
+      for (let i = 0; i < matrixData.length; i++) {
+        const row = [];
+
+        for (let j = 0; j < matrixData[i].length; j++) {
+          const element = parseFloat(matrixData[i][j]);
+
+          if (isNaN(element)) {
+            return null;
+          }
+
+          row.push(element);
+        }
+
+        matrix.push(row);
+      }
+
+      return matrix;
+    }
+
+    function multiply(matrixA, matrixB) {
+      const result = [];
+      const rowsA = matrixA.length;
+      const colsA = matrixA[0].length;
+      const colsB = matrixB[0].length;
+
+      for (let i = 0; i < rowsA; i++) {
+        result[i] = [];
+
+        for (let j = 0; j < colsB; j++) {
+          let sum = 0;
+
+          for (let k = 0; k < colsA; k++) {
+            sum += matrixA[i][k] * matrixB[k][j];
+          }
+
+          result[i].push(sum);
+        }
+      }
+
+      return result;
+    }
+
+    function displayResult(resultMatrix) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = '';
+
+      const table = document.createElement('table');
+
+      for (let i = 0; i < resultMatrix.length; i++) {
+        const row = document.createElement('tr');
+
+        for (let j = 0; j < resultMatrix[i].length; j++) {
+          const cell = document.createElement('td');
+          cell.textContent = resultMatrix[i][j].toFixed(2); // Display up to 2 decimal places
+          row.appendChild(cell);
+        }
+
+        table.appendChild(row);
+      }
+
+      resultDiv.appendChild(table);
+    }
+
+        function saveResultToFile() {
+      if (!window.resultMatrix) {
+        alert("请先计算乘积并得到结果。");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(window.resultMatrix);
+      XLSX.utils.book_append_sheet(wb, ws, "Matrix_Result");
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+
+      const s2ab = (s) => {
+        const buf = new ArrayBuffer(s.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+        return buf;
+      };
+
+      const blob = new Blob([s2ab(wbout)], { type: 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+
+      const downloadLink = document.getElementById('downloadLink');
+      downloadLink.href = url;
+      downloadLink.download = 'matrix_result.xlsx';
+      downloadLink.style.display = 'inline';
+    }
+
+    function calculateProduct() {
+      const result = multiply(window.matrixA, window.matrixB);
+      window.resultMatrix = result; // Store the result for later use
+      displayResult(result);
+    }
+  </script>
+</body>
+</html>
